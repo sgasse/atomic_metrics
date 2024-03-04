@@ -1,0 +1,3 @@
+[workspace]
+members = ["atomic_metrics_core", "atomic_metrics_examples"]
+resolver = "2"

@@ -1,0 +1,11 @@
+[package]
+name = "atomic_metrics_examples"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+atomic_metrics_core = { path = "../atomic_metrics_core" }
+
+[build-dependencies]
+anyhow = { version = "1" }
+atomic_metrics_core = { path = "../atomic_metrics_core" }
