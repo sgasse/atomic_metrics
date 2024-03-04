@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{bail, Result};
 use glob::glob;
 use regex::Regex;
 use std::{
@@ -115,7 +115,14 @@ pub fn generate_metrics_recorder_with_names<'a>(
 
     drop(out);
 
-    process::Command::new("rustfmt").arg(&output).output()?;
+    let output = process::Command::new("rustfmt").arg(&output).output()?;
+    if !output.status.success() {
+        bail!(
+            "failed to format generated code:\n{}\n{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
 
     Ok(())
 }
