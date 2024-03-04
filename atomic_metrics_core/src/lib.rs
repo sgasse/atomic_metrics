@@ -9,6 +9,7 @@ use std::{
     process,
 };
 
+/// Get the counter `name` as borrow of the atomic value.
 #[macro_export]
 macro_rules! get_counter {
     ($name:ident) => {
@@ -16,6 +17,7 @@ macro_rules! get_counter {
     };
 }
 
+/// Increment the counter `name` by `value`.
 #[macro_export]
 macro_rules! increment_metric {
     ($name:ident, $value:expr) => {
@@ -25,6 +27,7 @@ macro_rules! increment_metric {
     };
 }
 
+/// Increment the counter `name` by one.
 #[macro_export]
 macro_rules! tick_metric {
     ($name:ident) => {
@@ -34,6 +37,7 @@ macro_rules! tick_metric {
     };
 }
 
+/// Set the counter `name` to `value`.
 #[macro_export]
 macro_rules! set_metric {
     ($name:ident, $value:expr) => {
@@ -43,6 +47,7 @@ macro_rules! set_metric {
     };
 }
 
+/// Reset the counter `name` to zero.
 #[macro_export]
 macro_rules! reset_metric {
     ($name:ident) => {
@@ -52,6 +57,7 @@ macro_rules! reset_metric {
     };
 }
 
+/// Load the value of the counter `name`.
 #[macro_export]
 macro_rules! load_metric {
     ($name:ident) => {
@@ -61,11 +67,20 @@ macro_rules! load_metric {
     };
 }
 
-pub fn generate_metrics_facade() -> Result<()> {
+/// Generate the global `MetricsRecorder` based on all metrics usages in the source directory.
+pub fn generate_metrics_recorder() -> Result<()> {
     println!("cargo:rerun-if-changed=src/");
+    let metric_names = get_metric_names("src/**/*.rs")?;
 
-    let metric_names = get_metric_names()?;
+    generate_metrics_recorder_with_names(metric_names.iter().map(|x| x.as_str()))
+}
 
+/// Generate the global `MetricsRecorder` with all the metrics names passed.
+///
+/// There will be a compilation error if you try to access/modify a metric not mentioned here.
+pub fn generate_metrics_recorder_with_names<'a>(
+    metric_names: impl Iterator<Item = &'a str> + Clone,
+) -> Result<()> {
     let output = Path::new(&env::var("OUT_DIR")?).join("metrics.rs");
     let mut out = io::BufWriter::new(fs::File::create(&output)?);
 
@@ -73,7 +88,7 @@ pub fn generate_metrics_facade() -> Result<()> {
     writeln!(out)?;
     writeln!(out, "pub struct MetricsRecorder {{")?;
 
-    for metric in metric_names.iter() {
+    for metric in metric_names.clone() {
         writeln!(out, "pub {metric}: AtomicU64,")?;
     }
 
@@ -84,7 +99,7 @@ pub fn generate_metrics_facade() -> Result<()> {
     writeln!(out, "pub const fn new() -> Self {{")?;
     writeln!(out, "Self {{")?;
 
-    for metric in metric_names.iter() {
+    for metric in metric_names {
         writeln!(out, "{metric}: AtomicU64::new(0),")?;
     }
 
@@ -112,8 +127,9 @@ static SET_METRIC_REGEX: &str = r"set_metric!\([\n]?[\s]*([\d\w]+)[)\n,]";
 static RESET_METRIC_REGEX: &str = r"reset_metric!\([\n]?[\s]*([\d\w]+)[)\n,]";
 static LOAD_METRIC_REGEX: &str = r"load_metric!\([\n]?[\s]*([\d\w]+)[)\n,]";
 
-fn get_metric_names() -> Result<Vec<String>> {
-    let src_files = glob("src/**/*.rs")?;
+/// Extract metric names by sifting through the files in the glob pattern for macro usages.
+fn get_metric_names(pattern: &str) -> Result<Vec<String>> {
+    let src_files = glob(pattern)?;
 
     let regexes = [
         Regex::new(GET_COUNTER_REGEX).expect("failed to compile regex"),
